@@ -1,0 +1,36 @@
+---
+title: "Demonstration"
+author: "Scott Stoltzman"
+date: "6/17/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library('tidyverse')
+```
+
+```{r}
+coast_vs_waste <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-21/coastal-population-vs-mismanaged-plastic.csv")
+
+mismanaged_vs_gdp <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-21/per-capita-mismanaged-plastic-waste-vs-gdp-per-capita.csv")
+
+waste_vs_gdp <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-21/per-capita-plastic-waste-vs-gdp-per-capita.csv")
+
+```
+
+
+# Begin EDA 
+```{r}
+# Clean Names - helps quite a bit!
+coast_vs_waste = coast_vs_waste %>% janitor::clean_names()
+mismanaged_vs_gdp = mismanaged_vs_gdp %>% janitor::clean_names()
+waste_vs_gdp = waste_vs_gdp %>% janitor::clean_names()
+```
+
+# Assignment
+#### Build an analysis that relies on at least 2 of the data sets provided and results in a model that predicts one of the numeric variables (choose one that makes sense!)
+```{r}
+# Start!!!
+```
+
