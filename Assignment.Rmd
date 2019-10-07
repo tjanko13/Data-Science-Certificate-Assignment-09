@@ -8,29 +8,32 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library('tidyverse')
+raw_dat = ISLR::Auto
+dat = raw_dat %>%
+  select(year, mpg, cylinders, displacement, horsepower, weight, acceleration)
 ```
 
+You have all of the other information listed in the `dat` variable. Assume the data is accurate and clean.
 ```{r}
-coast_vs_waste <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-21/coastal-population-vs-mismanaged-plastic.csv")
-
-mismanaged_vs_gdp <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-21/per-capita-mismanaged-plastic-waste-vs-gdp-per-capita.csv")
-
-waste_vs_gdp <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-21/per-capita-plastic-waste-vs-gdp-per-capita.csv")
-
+head(dat)
 ```
 
 
-# Begin EDA 
+Use logistic regression via the `glm()` function, to predict whether the car should be classified as being made (`year`) on or before 1977. 
+
+Show any work leading up to your decision. Please describe the following:  
+
+  - How you selected your test/train split
+  - What process you used for variable selection
+  - Why you selected the specific probability threshold
+  - How the base rate fallacy does or does not apply in this case
+  - What you infer from the results
+  - What issues might be present that you haven't accounted for
+  
 ```{r}
-# Clean Names - helps quite a bit!
-coast_vs_waste = coast_vs_waste %>% janitor::clean_names()
-mismanaged_vs_gdp = mismanaged_vs_gdp %>% janitor::clean_names()
-waste_vs_gdp = waste_vs_gdp %>% janitor::clean_names()
+
 ```
 
-# Assignment
-#### Build an analysis that relies on at least 2 of the data sets provided and results in a model that predicts one of the numeric variables (choose one that makes sense!)
-```{r}
-# Start!!!
-```
+
+
 

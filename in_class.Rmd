@@ -1,0 +1,357 @@
+---
+title: "In Class"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# modeling install.packagesc(('caret', 'ISLR', 'ROCR'))
+
+library('tidyverse')
+library('caret')
+library('ROCR')
+library('modelr')
+dat = ISLR::Default
+dat  = as_tibble(ISLR::Default)
+```
+
+
+We are ssuming clean data (again) so that we can focus on understanding logistic regression.  
+
+What do the columns represent?
+```{r}
+?ISLR::Default
+head(dat)
+```
+
+Let's make life easier for ourselves and convert `default` to a 0 or 1 instead of "yes" or "no"
+```{r}
+dat = dat %>%
+  mutate(default = as.numeric(default) - 1) # why the -1?
+head(dat)
+```
+
+
+## Logistic Regression
+
+Recall that our model for linear regression is: `y = mx + b`
+
+```
+y = dependent variable (prediction)
+m = slope
+x = independent variable (predictor)
+b = y-intercept
+```
+
+Change to exponential is easy `e` is `exp()` in R. All of the rest of the variables in the equation remain the same.
+
+```
+y = exp(mx + b) / (1 + exp(mx + b))
+y = dependent variable (prediction)
+m = slope
+x = independent variable (predictor)
+b = y-intercept
+```
+
+By looking at the basic arithmetic of the equition, what can we infer about `y`?
+
+
+Let's go ahead and start some basic analysis. What does `default` vs `balance` look like as a boxplot and scatter plot?
+```{r}
+dat %>%
+  ggplot(aes(x = as.factor(default), y = balance)) + 
+  geom_boxplot()
+```
+
+```{r}
+dat %>%
+  ggplot(aes(x = balance, y = as.factor(default))) +
+  geom_point()
+```
+
+
+Let's fit a linear model.
+```{r}
+# If fitting in R
+model_lin = lm(default ~ balance, data = dat)
+model_lin
+```
+
+```{r}
+# "By hand"
+m = 0.0001299
+b = -0.0751920
+
+dat_model_lin = dat %>%
+  mutate(default_predicted = (m*balance) + b)
+head(dat_model_lin)
+## How do you interpret results?
+```
+
+What does our new model look like in a plot?
+```{r}
+dat_model_lin %>%
+  ggplot(aes(x = balance)) + 
+  geom_point(aes(y = default)) + 
+  geom_line(aes(y = default_predicted))
+```
+
+How do we interpret the previous plot? What does a negative default value mean?
+
+When was `default` predicted as a 0 or 1?
+```{r}
+default_threshold = 0.12
+
+dat_model_lin %>%
+  ggplot(aes(x = balance)) + 
+  geom_point(aes(y = default)) + 
+  geom_line(aes(y = default_predicted)) + 
+  geom_hline(yintercept = default_threshold, col = 'red')
+```
+
+Any data beyond the intersection of the red and black lines will be predicted as a "default"
+
+How do we add the threshold into our model? What do the results look like?
+```{r}
+dat_model_lin_preds = dat_model_lin %>%
+  mutate(default_predicted_2 = if_else(default_predicted > default_threshold, 1, 0))
+dat_model_lin_preds %>%
+  select(default, balance, income, default_predicted, default_predicted_2)
+```
+
+How accurate is our model? How do we calculate it?
+```{r}
+dat_model_lin_preds = dat_model_lin_preds %>%
+  mutate(predicted_correct = if_else(default == default_predicted_2, 1, 0))
+dat_model_lin_preds %>%
+  select(balance, default, default_predicted_2, predicted_correct)
+```
+
+
+```{r}
+total_number_of_rows = nrow(dat)
+
+dat_model_lin_preds %>%
+  summarize(predicted_correct = sum(predicted_correct)) %>%
+  mutate(pct_correct = predicted_correct / total_number_of_rows)
+  
+```
+
+Wow, 92.7% accuracy!
+
+
+However, what did we say about accuracy?
+```{r}
+dat %>%
+  group_by(default) %>%
+  count() %>%
+  ungroup() %>%
+  mutate(pct_of_data = n / total_number_of_rows)
+```
+
+We would have been right 96.67% of the time had we just said no default the entire time. This is what's known as the "base rate"
+
+Understand the "base rate fallacy" is a real problem and most people don't understand it well. Let's crank up the threshold and see what happens, a normal number to consider is 0.5 --- after all, you're saying you're predicting something.
+```{r}
+default_threshold = 0.5
+
+dat_model_lin %>%
+  mutate(default_predicted_2 = if_else(default_predicted > default_threshold, 1, 0)) %>%
+  mutate(predicted_correct = if_else(default == default_predicted_2, 1, 0)) %>%
+  summarize(predicted_correct = sum(predicted_correct)) %>%
+  mutate(pct_correct = predicted_correct / total_number_of_rows)
+```
+
+
+We get the same as the base rate!?!?!? Why is that?
+
+
+How do we create a logistic regression? 
+```{r}
+model_log <- glm(default ~ balance, family = 'binomial', data = dat)
+summary(model_log)
+```
+
+Let's do it "by hand"
+```{r}
+m = 0.05
+b = -30
+
+# How to add "e"
+dat_model_log = dat %>%
+  mutate(default = as.integer(default)) %>%
+  mutate(logistic_reg = (exp(m*balance + b))/(1 + (exp(m*balance + b))))
+
+head(dat_model_log)
+```
+
+
+How can we visualize the results?
+```{r}
+dat_model_log %>%
+  ggplot(aes(x = balance)) + 
+  geom_point(aes(y = default)) + 
+  geom_line(aes(y = logistic_reg))
+```
+
+```{r}
+m = 0.005499
+b = -10.651331
+
+# How to add "e"
+dat_model_log = dat %>%
+  mutate(default = as.integer(default)) %>%
+  mutate(logistic_reg = (exp(m*balance + b))/(1 + (exp(m*balance + b))))
+
+dat_model_log %>%
+  ggplot(aes(x = balance)) + 
+  geom_point(aes(y = default)) + 
+  geom_line(aes(y = logistic_reg))
+```
+
+
+We still need a threshold!
+```{r}
+probability_threshold = 0.5
+
+dat_model_log %>%
+  ggplot(aes(x = balance)) + 
+  geom_point(aes(y = default)) + 
+  geom_line(aes(y = logistic_reg)) + 
+  geom_hline(yintercept = probability_threshold, col = 'red')
+```
+
+
+```{r}
+dat_model_log_preds = dat_model_log %>%
+  mutate(default_prediciton = if_else(logistic_reg > probability_threshold, 1, 0)) %>%
+  mutate(predicted_correct = if_else(default == default_prediciton, 1, 0))
+
+dat_model_log_preds %>%
+  select(balance, default, default_prediciton, predicted_correct) %>%
+  summarize(predicted_correct = sum(predicted_correct)) %>%
+  mutate(pct_correct = predicted_correct / total_number_of_rows)
+```
+
+Rather than iterating through an showing a lot of these to minimize our error... we'll use a package.
+
+```{r}
+model_log <- glm(default ~ balance, 
+                 family = 'binomial', data = dat)
+summary(model_log)
+```
+
+In order to look at results, we'll use the fitted values rather than doing it all by hand. The `predict()` function is very handy as well as `prediction()`
+
+```{r}
+predictions = predict(model_log, data = dat)
+head(predictions)
+```
+
+Viewing results, can utilize the `table()` function. It's easy to change the probability threshold as well. How do we interpret the results?
+```{r}
+probability_threshold = 0.5
+table(dat$default, predictions > probability_threshold)
+```
+
+
+The function `confusionMatrix` shows quite a bit more information but requires some changes in data types.
+```{r}
+
+preds = as.factor(predictions > probability_threshold)
+actuals = as.factor(as.logical(dat$default))
+
+confusionMatrix(preds, actuals)
+```
+
+What do the above metrics mean??   
+
+<https://rdrr.io/cran/caret/man/confusionMatrix.html>   
+
+<https://www.analyticsvidhya.com/blog/2015/11/beginners-guide-on-logistic-regression-in-r/>
+
+Introducting the ROC curve utilizing the library `ROCR`  -- for this, you should typically assume p > 0.5 as a threshold.
+```{r}
+ROCRpred = prediction(predictions, dat$default)
+ROCRperf = performance(ROCRpred, 'tpr', 'fpr')
+plot(ROCRperf)
+abline(a = 0, b = 1,  col = 'grey')
+```
+
+What does the ROC chart mean?  We see an inflection point around 0.9 in the true positive rate. Meaning, after that there are diminishing returns for increasing the false positive rate.
+
+Area under the curve (AUC) -- closer to 1 is better)
+```{r}
+ROCRperf = performance(ROCRpred, measure = "auc")
+ROCRperf@y.values
+```
+
+What about multiple variables?
+```{r}
+model_log = glm(default ~ ., family = 'binomial', data = dat)
+summary(model_log)
+```
+
+
+```{r}
+probability_threshold = 0.5
+predictions = predict(model_log, data = dat)
+preds = as.factor(predictions > probability_threshold)
+actuals = as.factor(as.logical(dat$default))
+
+confusionMatrix(preds, actuals)
+```
+
+```{r}
+ROCRpred = prediction(predictions, dat$default)
+ROCRperf = performance(ROCRpred, 'tpr', 'fpr')
+plot(ROCRperf)
+abline(a = 0, b = 1, col = 'grey')
+```
+
+
+```{r}
+ROCRperf = performance(ROCRpred, measure = "auc")
+ROCRperf@y.values
+```
+
+What's wrong with our modeling process thus far?  
+
+We talked about test vs training data...
+```{r}
+reg_dat = dat %>%
+  mutate(id = row_number())
+
+set.seed(123)
+dat_train = reg_dat %>%
+  sample_n(9000, replace = FALSE)
+
+dat_test = reg_dat %>%
+  anti_join(dat_train, by = 'id')
+```
+
+
+```{r}
+head(dat_train)
+```
+
+```{r}
+head(dat_test)
+```
+
+
+```{r}
+model_log = glm(default ~ ., family = 'binomial', data = dat_train)
+
+probability_threshold = 0.5
+
+predictions = predict(model_log, newdata = dat_test)
+preds = as.factor(predictions > probability_threshold)
+actuals = as.factor(as.logical(dat_test$default))
+
+confusionMatrix(preds, actuals)
+```
+
+
+Due to the massive imbalance in our training data, the base rate fallacy hasn't been accounted for which makes it hard to predict default with as much accuracy.
+
