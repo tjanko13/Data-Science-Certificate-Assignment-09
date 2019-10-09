@@ -18,6 +18,11 @@ You have all of the other information listed in the `dat` variable. Assume the d
 head(dat)
 ```
 
+```{r}
+summary(dat)
+View(dat)
+```
+
 
 Use logistic regression via the `glm()` function, to predict whether the car should be classified as being made (`year`) on or before 1977. 
 
@@ -31,9 +36,145 @@ Show any work leading up to your decision. Please describe the following:
   - What issues might be present that you haven't accounted for
   
 ```{r}
+# Add new column for the binary target (year on or before 1977)
+target_dat <- dat %>%
+  mutate(target = if_else(dat$year <= 77, 1, 0))
 
+#View(target_dat)
+```
+
+```{r}
+# Add ID column for referencing rows 
+reg_dat <- target_dat %>%
+  mutate(id = row_number()) %>% 
+  select(id, target, everything())
+
+#View(reg_dat)
+```
+
+```{r}
+# Test/Train split: My gut says 70% Training Data / 30% Test Data given the relatively small dataset.
+# 275/117 = 392 cases
+
+# set seed
+set.seed(123)
+
+# Create train dataset
+train_data <- reg_dat %>%
+  sample_n(275, replace = FALSE)
+
+#View(train_data)
+
+# Create test dataset
+test_data = reg_dat %>%
+  anti_join(train_data, by = 'id')
+
+#View(test_data)
+```
+
+```{r}
+# Logistic Regression Model by hand
+m = 0.005499
+b = -10.651331
+
+# How to add "e"
+log_model_data <- train_data %>%
+  mutate(target = as.numeric(target)) %>% 
+  mutate(logistic_reg = (exp(m*acceleration + b))/(1 + (exp(m*acceleration + b))))
+
+#View(log_model_data)
+#head(log_model_data, 10)
+```
+
+```{r}
+# Base Rate (if I did it right...61.7% is the prior probability that a case is a "1" or year <= 1977; conversely, 1 - 61.7 = 38.3 means the year is > 1977). My log reg model must do better than 61.7%...
+#One type of base rate fallacy is the false positive paradox, where false positive tests are more probable than true positive tests, occurring when the overall population has a low incidence of a condition and the incidence rate is lower than the false positive rate.
+
+reg_dat %>%
+  group_by(target_dat$target) %>%
+  count() %>%
+  ungroup() %>%
+  mutate(pct_of_data = n / nrow(target_dat))
+
+#View(reg_dat)
+```
+
+```{r}
+# Probability threshold
+probability_threshold = .88
+
+log_model_data %>%
+  ggplot(aes(x = acceleration)) + 
+  geom_point(aes(y = target)) + 
+  geom_line(aes(y = logistic_reg)) + 
+  geom_hline(yintercept = probability_threshold, col = 'red')
+```
+
+```{r}
+# 
+dat_model_log_preds = log_model_data %>%
+  mutate(target_prediciton = if_else(logistic_reg > probability_threshold, 1, 0)) %>%
+  mutate(predicted_correct = if_else(target == target_prediciton, 1, 0))
+
+dat_model_log_preds %>%
+  select(acceleration, target, target_prediciton, predicted_correct) %>%
+  summarize(predicted_correct = sum(predicted_correct)) %>%
+  mutate(pct_correct = predicted_correct / total_number_of_rows)
 ```
 
 
+```{r}
+# Create logistic regression model
+# All variables initially selected
+# cylinders + displacement + horsepower + weight + acceleration
+log_reg_model <- glm(target ~ cylinders + displacement + horsepower + weight + acceleration, family = 'binomial', data = train_data)
+summary(log_reg_model)
+```
 
+```{r}
+# creating and viewing predictions
+predictions = predict(log_reg_model, data = train_data)
+head(predictions, 10)
+```
+
+```{r}
+# using table to view and interpret the confusion matrix
+probability_threshold = 0.5
+table(train_data$target, predictions > probability_threshold)
+```
+
+```{r}
+# Using confusion matrix function
+preds = as.factor(predictions > probability_threshold)
+actuals = as.factor(as.logical(train_data$target))
+
+confusionMatrix(preds, actuals)
+```
+
+```{r}
+# ROC Predictions
+ROCRpred = prediction(predictions, log_model_data$target)
+ROCRperf = performance(ROCRpred, 'tpr', 'fpr')
+plot(ROCRperf)
+abline(a = 0, b = 1, col = 'grey')
+```
+
+```{r}
+# ROC Performance
+ROCRperf = performance(ROCRpred, measure = "auc")
+ROCRperf@y.values
+```
+
+```{r}
+# Logistic Regression Model with test data
+log_reg_model_final <- glm(target ~ cylinders + displacement + horsepower + weight + acceleration, family = 'binomial', data = train_data)
+
+probability_threshold = 0.5
+
+predictions <- predict(log_reg_model_final, newdata = test_data)
+preds <- as.factor(predictions > probability_threshold)
+actuals <- as.factor(as.logical(test_data$target))
+
+confusionMatrix(preds, actuals)
+```
 
